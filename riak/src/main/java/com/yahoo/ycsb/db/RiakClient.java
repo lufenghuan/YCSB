@@ -16,14 +16,13 @@
 
 package com.yahoo.ycsb.db;
 
-import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
-import java.io.File;
+import java.lang.StringBuffer;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -33,6 +32,11 @@ import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.StringByteIterator;
+import com.yahoo.ycsb.workloads.CoreWorkload;
+
+import com.basho.riak.client.*;
+import com.basho.riak.client.bucket.*;
+
 
 /**
  * DynamoDB v1.3.14 client for YCSB
@@ -47,7 +51,16 @@ public class RiakClient extends DB {
     private boolean debug = false;
     private boolean consistentRead = false;
 
+    private IRiakClient client;
+    private Bucket myBucket;
+
     private int maxConnects = 50;
+    
+    private final int FIELD_LENGTH = 
+      Integer.parseInt(CoreWorkload.FIELD_LENGTH_PROPERTY_DEFAULT); 
+    private final int FIELD_COUNT = 
+      Integer.parseInt(CoreWorkload.FIELD_COUNT_PROPERTY_DEFAULT);
+
     private static Logger logger = Logger.getLogger(RiakClient.class);
     public RiakClient() {}
 
@@ -57,8 +70,15 @@ public class RiakClient extends DB {
      */
     public void init() throws DBException {
       BasicConfigurator.configure();
-      logger.setLevel(Level.DEBUG);  
+      logger.setLevel(Level.INFO);  
       logger.debug("int");
+      try{  
+        client = RiakFactory.pbcClient();
+        myBucket = client.fetchBucket("riak-benchmark-ycsb").execute();
+      }catch (RiakException e){
+        logger.error(e.getMessage());
+        System.exit(1);
+      }
     }
 
     @Override
@@ -87,6 +107,22 @@ public class RiakClient extends DB {
     @Override
     public int insert(String table, String key,HashMap<String, ByteIterator> values) {
         logger.debug("insertkey: " + primaryKeyName + "-" + key + " from table: " + table);
+        // Riak's bucket interface only support store String or Object
+        StringBuffer buf = new StringBuffer(FIELD_LENGTH*FIELD_COUNT);
+        try{
+         // Bucket myBucket = client.fetchBucket(table).execute();
+          //ByteBuffer buf = ByteBuffer.allocateDirect(FIELD_LENGTH*FIELD_COUNT);
+          /*
+          for (Entry<String, ByteIterator> val : values.entrySet()) {
+            buf.append(val.getValue().toString());
+          }
+          */
+          //myBucket.store(key,buf.toString()).execute();
+          myBucket.store(key,key).execute();
+        }catch(RiakException e){
+          logger.error(e.getMessage());
+          return CLIENT_ERROR;
+        }
         return OK;
     }
 
@@ -95,5 +131,6 @@ public class RiakClient extends DB {
         logger.debug("deletekey: " + key + " from table: " + table);
         return OK;
     }
+
 
 }
