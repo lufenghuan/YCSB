@@ -61,7 +61,10 @@ public class RiakClient extends DB {
     private final int FIELD_COUNT = 
       Integer.parseInt(CoreWorkload.FIELD_COUNT_PROPERTY_DEFAULT);
 
+    private String[] hosts = {"10.203.37.162","10.194.95.79"}; 
     private static Logger logger = Logger.getLogger(RiakClient.class);
+
+    static int idx = 0;
     public RiakClient() {}
 
     /**
@@ -73,6 +76,8 @@ public class RiakClient extends DB {
       logger.setLevel(Level.INFO);  
       logger.debug("int");
       try{  
+        //logger.info("connect host:"+hosts[idx%(hosts.length)]);
+       // client = RiakFactory.pbcClient(hosts[idx++%(hosts.length)], 8087);
         client = RiakFactory.pbcClient();
        // myBucket = client.fetchBucket("riak-benchmark-ycsb").execute();
       }catch (RiakException e){
@@ -116,17 +121,33 @@ public class RiakClient extends DB {
     @Override
     public int update(String table, String key, HashMap<String, ByteIterator> values) {
         logger.debug("updatekey: " + key + " from table: " + table);
-
-        return OK;
+        return riakInsert(table, key, values); 
     }
 
     @Override
     public int insert(String table, String key,HashMap<String, ByteIterator> values) {
         logger.debug("insertkey: " + primaryKeyName + "-" + key + " from table: " + table);
+        return riakInsert(table, key, values);
+    }
+
+    @Override
+    public int delete(String table, String key) {
+        logger.debug("deletekey: " + key + " from table: " + table);
+        try{
+          Bucket myBucket = client.fetchBucket(table).execute();
+          myBucket.delete(key).execute();
+        }catch(RiakException e){
+          logger.error(e.getMessage());
+          return CLIENT_ERROR;
+        }
+        return OK;
+    }
+    
+    private int riakInsert(String table, String key,HashMap<String, ByteIterator> values) {
         // Riak's bucket interface only support store String or Object
         StringBuffer buf = new StringBuffer(FIELD_LENGTH*FIELD_COUNT);
         try{
-          Bucket myBucket = client.fetchBucket("2").execute();
+          Bucket myBucket = client.fetchBucket(table).execute();
           //ByteBuffer buf = ByteBuffer.allocateDirect(FIELD_LENGTH*FIELD_COUNT);
           
           for (Entry<String, ByteIterator> val : values.entrySet()) {
@@ -142,11 +163,6 @@ public class RiakClient extends DB {
         return OK;
     }
 
-    @Override
-    public int delete(String table, String key) {
-        logger.debug("deletekey: " + key + " from table: " + table);
-        return OK;
-    }
 
     private HashMap<String, ByteIterator> extractResult(String str) {
         if(null == str)
