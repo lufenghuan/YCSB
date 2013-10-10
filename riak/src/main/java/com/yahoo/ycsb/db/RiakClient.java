@@ -74,7 +74,7 @@ public class RiakClient extends DB {
       logger.debug("int");
       try{  
         client = RiakFactory.pbcClient();
-        myBucket = client.fetchBucket("riak-benchmark-ycsb").execute();
+       // myBucket = client.fetchBucket("riak-benchmark-ycsb").execute();
       }catch (RiakException e){
         logger.error(e.getMessage());
         System.exit(1);
@@ -84,8 +84,24 @@ public class RiakClient extends DB {
     @Override
     public int read(String table, String key, Set<String> fields,
             HashMap<String, ByteIterator> result) {
-
         logger.debug("readkey: " + key + " from table: " + table);
+        StringBuffer buf = new StringBuffer(FIELD_LENGTH*FIELD_COUNT);
+        try{
+          Bucket myBucket = client.fetchBucket("2").execute();
+          //ByteBuffer buf = ByteBuffer.allocateDirect(FIELD_LENGTH*FIELD_COUNT);
+          String fetched = myBucket.fetch(key, String.class).execute(); 
+          logger.debug("read result:"+fetched); 
+          if (null !=fetched) 
+          {
+            result.putAll(extractResult(fetched));
+            logger.debug("Result: " + fetched);
+          }
+
+        }catch(RiakException e){
+          logger.error(e.getMessage());
+          return CLIENT_ERROR;
+        }
+              
         return OK;
     }
 
@@ -93,7 +109,7 @@ public class RiakClient extends DB {
     public int scan(String table, String startkey, int recordcount,
         Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
         logger.debug("scan " + recordcount + " records from key: " + startkey + " on table: " + table);
-        
+       //riak not support scan 
         return OK;
     }
 
@@ -110,15 +126,15 @@ public class RiakClient extends DB {
         // Riak's bucket interface only support store String or Object
         StringBuffer buf = new StringBuffer(FIELD_LENGTH*FIELD_COUNT);
         try{
-         // Bucket myBucket = client.fetchBucket(table).execute();
+          Bucket myBucket = client.fetchBucket("2").execute();
           //ByteBuffer buf = ByteBuffer.allocateDirect(FIELD_LENGTH*FIELD_COUNT);
-          /*
+          
           for (Entry<String, ByteIterator> val : values.entrySet()) {
             buf.append(val.getValue().toString());
           }
-          */
-          //myBucket.store(key,buf.toString()).execute();
-          myBucket.store(key,key).execute();
+          
+          myBucket.store(key,buf.toString()).execute();
+          //myBucket.store(key,key).execute();
         }catch(RiakException e){
           logger.error(e.getMessage());
           return CLIENT_ERROR;
@@ -131,6 +147,19 @@ public class RiakClient extends DB {
         logger.debug("deletekey: " + key + " from table: " + table);
         return OK;
     }
+
+    private HashMap<String, ByteIterator> extractResult(String str) {
+        if(null == str)
+            return null;
+        HashMap<String, ByteIterator> rItems = new HashMap<String, ByteIterator>(FIELD_COUNT);
+        StringBuffer buf = new StringBuffer(str);
+        for (int i=0; i<FIELD_COUNT; i++){
+            rItems.put("field"+i, new StringByteIterator(buf.substring(i*FIELD_LENGTH,FIELD_LENGTH)));
+        }
+        
+        return rItems;
+    }
+
 
 
 }
