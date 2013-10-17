@@ -65,6 +65,7 @@ public class RiakClient extends DB {
     logger.debug("int");
 
     String clusterHost = getProperties().getProperty("riak.clusterHost","localhost");
+    logger.info("cluster host: "+ clusterHost);
     try{  
       pbClient = new PBClientAdapter(clusterHost,8087);
     }catch (IOException e){

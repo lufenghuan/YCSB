@@ -1,0 +1,2 @@
+./bin/ycsb load riak -P workloads/workloadc -P riak/conf/riak.properties  -p recordcount=10000 -threads 1
+./bin/ycsb run riak -P workloads/workloadc  -P riak/conf/riak.properties -p recordcount=100000 -p operationcount=10000 -threads 1
